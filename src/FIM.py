@@ -2,7 +2,7 @@ import os
 import hashlib
 import time
 import base64
-
+import operations as op
 web = {'path': './web', 'recursive': True}
 backup = {'path': './backup', 'recursive': True}
 
@@ -37,13 +37,20 @@ def getHash(fileList, files):
         sha256 = hash.hexdigest()
         files[file] = {'sha256': sha256, 'bytes': getBytes(file)}
 
+def hash_compare():
+    getHash(getFiles(web), filesWeb)
+    for hashWeb in filesWeb:
+        for hashBackup in filesBackup:
+            print(filesWeb[hashWeb]['sha256'], filesBackup[hashBackup]['sha256'])
+            if filesWeb[hashWeb]['sha256'] == filesBackup[hashBackup]['sha256']:
+                print('1) No cambio')
+            else:
+                op.fileWrite(op.fileRead(hashBackup), hashWeb)
+                print('2) Cambio')
 
-getHash(getFiles(web), filesWeb)
-print('Directory: ', web)
-print('Files: ', getFiles(web))
-print('Hash Files: ', filesWeb)
+getHash(getFiles(backup), filesBackup)
 
+while True:
+    hash_compare()
 
-# while True:
-
-#     time.sleep(1)
+    time.sleep(10)
