@@ -3,11 +3,26 @@ import hashlib
 import time
 import base64
 import operations as op
-web = {'path': './web', 'recursive': True}
-backup = {'path': './backup', 'recursive': True}
+import pathlib
+
+BLOCK_SIZE = 65536
+
+# Change path to your case
+web = {'path': r'C:\Users\esteb\OneDrive\Escritorio\Ciclo ll\Seguridad informatica\Proyecto\FileIntegrityMonitor-Toolkit\src\web', 'recursive': True}
+backup = {'path': r'C:\Users\esteb\OneDrive\Escritorio\Ciclo ll\Seguridad informatica\Proyecto\FileIntegrityMonitor-Toolkit\src\backup', 'recursive': True}
 
 filesWeb = {}
 filesBackup = {}
+
+exceptionsTypes = [
+    '.png', '.jpg', '.jpeg', '.gif', '.css', '.txt'
+]
+
+# Change path to your case
+exceptionsDir = [
+    r'C:\Users\esteb\OneDrive\Escritorio\Ciclo ll\Seguridad informatica\Proyecto\FileIntegrityMonitor-Toolkit\src\web\public',
+    r'C:\Users\esteb\OneDrive\Escritorio\Ciclo ll\Seguridad informatica\Proyecto\FileIntegrityMonitor-Toolkit\src\web\resources',
+]
 
 
 def getFiles(directory):
@@ -31,26 +46,66 @@ def getBytes(file):
 def getHash(fileList, files):
     for file in fileList:
         hash = hashlib.sha256()
-        with open(file) as f:
-            for chunk in iter(lambda: f.read(2048), ""):
-                hash.update(chunk.encode('utf-8'))
+        with open(file, 'rb') as f:
+            data = f.read(BLOCK_SIZE)
+            while len(data) > 0:
+                hash.update(data)
+                data = f.read(BLOCK_SIZE)
         sha256 = hash.hexdigest()
         files[file] = {'sha256': sha256, 'bytes': getBytes(file)}
+
 
 def hash_compare():
     getHash(getFiles(web), filesWeb)
     for hashWeb in filesWeb:
-        for hashBackup in filesBackup:
-            print(filesWeb[hashWeb]['sha256'], filesBackup[hashBackup]['sha256'])
-            if filesWeb[hashWeb]['sha256'] == filesBackup[hashBackup]['sha256']:
-                print('1) No cambio')
+        backupMirror = str(hashWeb).replace(r'\web', r'\backup')
+        if backupMirror in filesBackup:
+            if filesWeb[hashWeb]['sha256'] == filesBackup[backupMirror]['sha256']:
+                print('1) No cambio', hashWeb)
             else:
-                op.fileWrite(op.fileRead(hashBackup), hashWeb)
-                print('2) Cambio')
+                fileExtension = pathlib.Path(hashWeb).suffix
+                fileDirectory = pathlib.Path(hashWeb).resolve().parent
+                if str(fileDirectory) in exceptionsDir and fileExtension in exceptionsTypes:
+                    print('2) Cambio. Se acepta', hashWeb)
+                    if fileExtension in exceptionsTypes and fileExtension != '.css' and fileExtension != '.txt':
+                        op.imageSave(str(hashWeb), backupMirror)
+                    else:
+                        op.fileWrite(op.fileRead(hashWeb), backupMirror)
+                else:
+                    print('2) Cambio. No se acepta', hashWeb, backupMirror)
+                    op.fileWrite(op.fileRead(backupMirror), hashWeb)
+        else:
+            fileExtension = pathlib.Path(hashWeb).suffix
+            fileDirectory = pathlib.Path(hashWeb).resolve().parent
+            if str(fileDirectory) in exceptionsDir and fileExtension in exceptionsTypes:
+                print('2) Cambio. Se acepta', hashWeb)
+                if fileExtension in exceptionsTypes and fileExtension != '.css' and fileExtension != '.txt':
+                    op.imageSave(str(hashWeb), backupMirror)
+                else:
+                    op.fileWrite(op.fileRead(hashWeb), backupMirror)
+
+            else:
+                print('2) Cambio. No se acepta', hashWeb, backupMirror)
+                op.fileWrite(op.fileRead(backupMirror), hashWeb)
+
+
+def file_exist():
+    getHash(getFiles(web), filesWeb)
+    routesWeb = getFiles(web)
+    routesBackup = getFiles(backup)
+    for dir in routesWeb:
+        backupMirror = str(dir).replace(r'\web', r'\backup')
+        if (backupMirror not in routesBackup):
+            print('no existe')
+            os.remove(dir)
+            print("eliminado")
+
 
 getHash(getFiles(backup), filesBackup)
 
 while True:
+    print('\n-----------EJECUCION-----------')
     hash_compare()
-
-    time.sleep(10)
+    file_exist()
+    time.sleep(30)
+    print('-----------FIN EJECUCION-----------')
